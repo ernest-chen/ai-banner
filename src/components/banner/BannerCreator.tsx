@@ -149,13 +149,8 @@ export const BannerCreator: React.FC = () => {
           </h2>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Column - Customization */}
+            {/* Left Column - Content Customization */}
             <div className="space-y-6">
-              <BackgroundColorSelector
-                selectedColor={backgroundColor}
-                onColorChange={setBackgroundColor}
-              />
-
               <TextInput
                 value={customText}
                 onChange={setCustomText}
@@ -184,6 +179,11 @@ export const BannerCreator: React.FC = () => {
             {/* Right Column - Design Options & Action Buttons */}
             <div className="space-y-6">
               <div className="space-y-4">
+                <BackgroundColorSelector
+                  selectedColor={backgroundColor}
+                  onColorChange={setBackgroundColor}
+                />
+
                 <FontColorSelector
                   selectedColor={fontColor}
                   onColorChange={setFontColor}

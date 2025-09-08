@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { 
   Smartphone, 
   Monitor, 
@@ -115,11 +116,13 @@ export const Features: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {useCases.map((useCase, index) => (
             <div key={index} className="bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="aspect-video">
-                <img
+              <div className="aspect-video relative">
+                <Image
                   src={useCase.image}
                   alt={useCase.title}
-                  className="w-full h-full object-cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  className="object-cover"
                 />
               </div>
               <div className="p-6">

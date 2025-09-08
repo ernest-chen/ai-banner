@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Palette, Monitor } from 'lucide-react';
 
@@ -37,11 +38,13 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({ template }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-shadow">
       {/* Preview Image */}
-      <div className="aspect-video bg-gray-100">
-        <img
+      <div className="aspect-video bg-gray-100 relative">
+        <Image
           src={template.preview}
           alt={`${template.useCase.name} template`}
-          className="w-full h-full object-cover"
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          className="object-cover"
         />
       </div>
 

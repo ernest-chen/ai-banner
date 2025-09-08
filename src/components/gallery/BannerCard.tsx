@@ -144,7 +144,7 @@ export const BannerCard: React.FC<BannerCardProps> = ({
                 : banner.imageUrl;
             })()} 
             alt="Thumbnail" 
-            className="w-75 object-cover mt-1" 
+            className="w-88 object-cover mt-1" 
           />
         </div>
         

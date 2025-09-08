@@ -174,8 +174,17 @@ export class AIService {
   }
 
   private getPlaceholderImage(request: BannerGenerationRequest, enhancedPrompt?: string): { imageUrl: string } {
-    // Prioritize custom text, then enhanced prompt, then use case name
+    // Prioritize custom text, then context, then enhanced prompt, then use case name
     let displayText = request.customText;
+    
+    // If no custom text but we have context, use a relevant phrase from context
+    if (!displayText && request.context) {
+      // Extract key words from context, limit to reasonable length
+      const contextWords = request.context.split(' ')
+        .filter(word => word.length > 2)
+        .slice(0, 4); // Take first 4 words
+      displayText = contextWords.join(' ');
+    }
     
     if (!displayText && enhancedPrompt) {
       // Extract meaningful text from the enhanced prompt
@@ -194,7 +203,7 @@ export class AIService {
     }
     
     if (!displayText) {
-      displayText = request.useCase.name;
+      displayText = request.useCase.suggestedText[0] || request.useCase.name;
     }
     
     // Truncate if too long to avoid URL issues

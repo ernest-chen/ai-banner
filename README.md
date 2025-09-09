@@ -35,6 +35,14 @@ AI Banner is a Next.js application that allows customers to create professional 
 - Theme and color palette selection
 - Background image options
 
+## Sample Output
+
+Here's an example of a professional LinkedIn banner created with AI Banner:
+
+![Sample LinkedIn Banner](./public/images/sample_linkedin_banner.png)
+
+*This banner was generated using AI Banner with custom text, professional styling, and optimal LinkedIn dimensions.*
+
 ## Tech Stack
 
 - **Frontend**: Next.js 14, TypeScript, Tailwind CSS

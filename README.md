@@ -5,7 +5,7 @@ AI Banner is a Next.js application that allows customers to create professional 
 ## Features
 
 ### 🎨 AI-Powered Design
-- **Google Gemini 2.5 Lite Integration**: Advanced AI image generation with multimodal capabilities
+- **Google Gemini Models Integration**: Advanced AI image generation with multimodal capabilities
 - **Smart Taglines**: AI-generated powerful messages based on context
 - **Professional Themes**: Curated design themes for different industries
 
@@ -41,7 +41,7 @@ AI Banner is a Next.js application that allows customers to create professional 
 - **Authentication**: Firebase Auth (Google, Apple)
 - **Database**: Firestore
 - **Storage**: Firebase Storage
-- **AI Integration**: Google Gemini 2.5 Lite API
+- **AI Integration**: Google Gemini 2.5 Flash API
 - **UI Components**: Radix UI, Lucide React
 - **Styling**: Tailwind CSS with custom design system
 
@@ -310,7 +310,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Support
 
-For support, email support@aibanner.com or create an issue in the repository.
+For support, create an issue in the repository.
 
 ---
 

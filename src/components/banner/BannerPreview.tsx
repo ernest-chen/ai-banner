@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { BannerSize, Theme, UseCase } from '@/types/banner';
 import { Loader2 } from 'lucide-react';
 
@@ -48,7 +49,7 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-sm border p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-4">
-        Banner Preview
+        {useCase.name}
       </h2>
       
       <div className="flex justify-center">
@@ -84,10 +85,13 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
               </div>
             </div>
           ) : generatedImageUrl ? (
-            <img
+            <Image
               src={generatedImageUrl}
               alt="Generated banner"
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
+              sizes="(max-width: 600px) 100vw, 600px"
+              priority
             />
           ) : (
             <div
@@ -99,7 +103,7 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
             >
               <div className="text-center p-6">
                 <div
-                  className="font-bold mb-2"
+                  className="font-bold"
                   style={{
                     color: fontColor,
                     fontFamily: theme.fontFamily,
@@ -108,21 +112,12 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
                 >
                   {customText || useCase.suggestedText[0]}
                 </div>
-                <div
-                  className="text-sm opacity-75"
-                  style={{ 
-                    fontFamily: theme.fontFamily,
-                    color: fontColor
-                  }}
-                >
-                  {useCase.name}
-                </div>
               </div>
               
               {/* Logo preview */}
               {logo && (
                 <div
-                  className="absolute w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg"
+                  className="absolute w-12 h-12 flex items-center justify-center"
                   style={(() => {
                     const baseStyle: React.CSSProperties = {};
                     
@@ -153,10 +148,11 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
                     return baseStyle;
                   })()}
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={URL.createObjectURL(logo)}
                     alt="Logo preview"
-                    className="w-8 h-8 object-contain max-w-full max-h-full"
+                    className="w-12 h-12 object-contain max-w-full max-h-full"
                     style={{
                       display: 'block',
                       margin: 'auto'

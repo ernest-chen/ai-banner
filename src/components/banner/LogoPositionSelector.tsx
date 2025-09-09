@@ -8,6 +8,7 @@ interface LogoPositionSelectorProps {
 }
 
 const LOGO_POSITIONS = [
+  { value: '', label: 'Auto', description: 'AI chooses', isAuto: true },
   { value: 'top-left', label: 'Top Left', icon: '↖️' },
   { value: 'top-right', label: 'Top Right', icon: '↗️' },
   { value: 'center', label: 'Center', icon: '⭕' },
@@ -27,7 +28,7 @@ export const LogoPositionSelector: React.FC<LogoPositionSelectorProps> = ({
       <div className="grid grid-cols-3 gap-2">
         {LOGO_POSITIONS.map((position) => (
           <button
-            key={position.value}
+            key={position.value || 'auto'}
             onClick={() => onPositionChange(position.value)}
             className={`p-3 rounded-lg border-2 transition-all hover:bg-gray-50 ${
               selectedPosition === position.value
@@ -36,8 +37,22 @@ export const LogoPositionSelector: React.FC<LogoPositionSelectorProps> = ({
             }`}
           >
             <div className="text-center">
-              <div className="text-lg mb-1">{position.icon}</div>
-              <div className="text-xs text-gray-600">{position.label}</div>
+              {position.isAuto ? (
+                <div className="flex flex-col items-center">
+                  <div className="w-6 h-6 border-2 border-gray-400 rounded-full relative mb-1">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-4 h-0.5 bg-gray-400 transform rotate-45"></div>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-600">{position.label}</div>
+                  <div className="text-xs text-gray-500">{position.description}</div>
+                </div>
+              ) : (
+                <>
+                  <div className="text-lg mb-1">{position.icon}</div>
+                  <div className="text-xs text-gray-600">{position.label}</div>
+                </>
+              )}
             </div>
           </button>
         ))}

@@ -28,10 +28,10 @@ export const BannerCreator: React.FC = () => {
   const [customText, setCustomText] = useState('');
   const [context, setContext] = useState('');
   const [logo, setLogo] = useState<File | null>(null);
-  const [fontColor, setFontColor] = useState('#000000');
-  const [fontSize, setFontSize] = useState('16');
-  const [backgroundColor, setBackgroundColor] = useState('#ffffff');
-  const [logoPosition, setLogoPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center'>('top-right');
+  const [fontColor, setFontColor] = useState('');
+  const [fontSize, setFontSize] = useState('');
+  const [backgroundColor, setBackgroundColor] = useState('');
+  const [logoPosition, setLogoPosition] = useState<string>('');
   const [generatedBanner, setGeneratedBanner] = useState<GeneratedBanner | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);

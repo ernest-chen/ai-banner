@@ -8,6 +8,7 @@ interface FontSizeSelectorProps {
 }
 
 const FONT_SIZES = [
+  { value: '', label: 'Auto', description: 'AI chooses', isAuto: true },
   { value: '12', label: '12px', description: 'Small' },
   { value: '14', label: '14px', description: 'Small' },
   { value: '16', label: '16px', description: 'Medium' },
@@ -32,7 +33,7 @@ export const FontSizeSelector: React.FC<FontSizeSelectorProps> = ({
       <div className="grid grid-cols-5 gap-2">
         {FONT_SIZES.map((size) => (
           <button
-            key={size.value}
+            key={size.value || 'auto'}
             onClick={() => onSizeChange(size.value)}
             className={`p-2 rounded-lg border-2 transition-all hover:bg-gray-50 ${
               selectedSize === size.value
@@ -41,8 +42,22 @@ export const FontSizeSelector: React.FC<FontSizeSelectorProps> = ({
             }`}
           >
             <div className="text-center">
-              <div className="text-sm font-medium">{size.label}</div>
-              <div className="text-xs text-gray-500">{size.description}</div>
+              {size.isAuto ? (
+                <div className="flex flex-col items-center">
+                  <div className="w-6 h-6 border-2 border-gray-400 rounded-full relative mb-1">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-4 h-0.5 bg-gray-400 transform rotate-45"></div>
+                    </div>
+                  </div>
+                  <div className="text-sm font-medium text-gray-600">{size.label}</div>
+                  <div className="text-xs text-gray-500">{size.description}</div>
+                </div>
+              ) : (
+                <>
+                  <div className="text-sm font-medium">{size.label}</div>
+                  <div className="text-xs text-gray-500">{size.description}</div>
+                </>
+              )}
             </div>
           </button>
         ))}

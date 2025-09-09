@@ -237,12 +237,32 @@ export class AIService {
 
 BANNER SPECIFICATIONS:
 - Dimensions: ${size.width}x${size.height} pixels (${this.getAspectRatio(size)} aspect ratio)
-- Background: Solid ${backgroundColor} color
-- Text Color: ${fontColor}
-- Typography: ${theme.fontFamily} font family, ${fontSize}px size
-- Style: ${theme.style} aesthetic
+- Typography: ${theme.fontFamily} font family`;
 
-MAIN TEXT: "${customText}"`;
+    // Add font size only if specified
+    if (fontSize) {
+      prompt += `, ${fontSize}px size`;
+    } else {
+      prompt += `, choose appropriate font size for readability`;
+    }
+
+    prompt += `
+- Style: ${theme.style} aesthetic`;
+
+    // Add color specifications only if provided
+    if (backgroundColor) {
+      prompt += `\n- Background: Solid ${backgroundColor} color`;
+    } else {
+      prompt += `\n- Background: Choose an appropriate background color that complements the ${theme.style} style`;
+    }
+
+    if (fontColor) {
+      prompt += `\n- Text Color: ${fontColor}`;
+    } else {
+      prompt += `\n- Text Color: Choose a color that provides excellent contrast and readability`;
+    }
+
+    prompt += `\n\nMAIN TEXT: "${customText}"`;
 
     if (context) {
       prompt += `\nCONTEXT: ${context}`;
@@ -250,18 +270,54 @@ MAIN TEXT: "${customText}"`;
 
     // Add logo positioning instructions if logo is provided
     if (logo) {
-      const logoPositionInstructions = this.getLogoPositionInstructions(logoPosition, size);
-      prompt += `\n\nLOGO REQUIREMENTS:
+      if (logoPosition) {
+        const logoPositionInstructions = this.getLogoPositionInstructions(logoPosition, size);
+        prompt += `\n\nLOGO REQUIREMENTS:
 - A logo will be overlaid on this banner at the ${logoPosition} position
 - ${logoPositionInstructions}
 - Ensure the main text and other elements do NOT overlap with the logo area
 - Leave adequate space around the logo position for clean integration
 - The logo area should be clearly defined and unobstructed`;
+      } else {
+        prompt += `\n\nLOGO REQUIREMENTS:
+- A logo will be overlaid on this banner (position to be determined by AI)
+- Choose the optimal logo position that works best with the overall design
+- Ensure the main text and other elements do NOT overlap with the logo area
+- Leave adequate space around the logo for clean integration
+- The logo area should be clearly defined and unobstructed`;
+      }
     }
 
     prompt += `\n\nDESIGN REQUIREMENTS:
-1. Create a clean, modern banner with ${backgroundColor} background
-2. Display the text "${customText}" prominently in ${fontColor} color using ${theme.fontFamily} typography
+1. Create a clean, modern banner design`;
+
+    // Add background requirement only if specified
+    if (backgroundColor) {
+      prompt += ` with ${backgroundColor} background`;
+    } else {
+      prompt += ` with an appropriate background color`;
+    }
+
+    prompt += `
+2. Display the text "${customText}" prominently`;
+
+    // Add font color requirement only if specified
+    if (fontColor) {
+      prompt += ` in ${fontColor} color`;
+    } else {
+      prompt += ` in a color that ensures excellent readability`;
+    }
+
+    prompt += ` using ${theme.fontFamily} typography`;
+
+    // Add font size requirement only if specified
+    if (fontSize) {
+      prompt += ` at ${fontSize}px size`;
+    } else {
+      prompt += ` with appropriate font size for optimal readability`;
+    }
+
+    prompt += `
 3. Ensure excellent readability and professional appearance
 4. Use ${theme.colorPalette.primary} as primary accent color
 5. Incorporate ${theme.colorPalette.secondary} as secondary elements
@@ -272,10 +328,26 @@ MAIN TEXT: "${customText}"`;
 10. Position elements to work well at ${size.width}x${size.height} resolution`;
 
     if (logo) {
-      prompt += `
+      if (logoPosition) {
+        prompt += `
 11. IMPORTANT: Design the layout to accommodate a logo at the ${logoPosition} position
 12. Ensure NO text or design elements overlap with the logo placement area
 13. Create visual balance between the main content and the reserved logo space`;
+      } else {
+        prompt += `
+11. IMPORTANT: Design the layout to accommodate a logo (AI will choose optimal position)
+12. Ensure NO text or design elements overlap with the logo placement area
+13. Create visual balance between the main content and the logo space
+14. Choose the best logo position that enhances the overall design`;
+      }
+    }
+
+    // Add color guidance when colors are not specified
+    if (!backgroundColor || !fontColor) {
+      prompt += `
+14. IMPORTANT: Choose colors that work harmoniously together and maintain professional appearance
+15. Ensure sufficient contrast between text and background for readability
+16. Consider the ${theme.style} aesthetic when selecting colors`;
     }
 
     prompt += `

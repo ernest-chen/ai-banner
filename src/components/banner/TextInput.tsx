@@ -8,6 +8,7 @@ interface TextInputProps {
   placeholder: string;
   label: string;
   maxLength?: number;
+  required?: boolean;
 }
 
 export const TextInput: React.FC<TextInputProps> = ({
@@ -15,12 +16,14 @@ export const TextInput: React.FC<TextInputProps> = ({
   onChange,
   placeholder,
   label,
-  maxLength = 100
+  maxLength = 100,
+  required = false
 }) => {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-2">
         {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       <div className="relative">
         <textarea

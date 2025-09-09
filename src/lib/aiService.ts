@@ -96,75 +96,131 @@ export class AIService {
   }
 
   private async callAIService(prompt: string, request: BannerGenerationRequest): Promise<{ imageUrl: string }> {
-    // Google Gemini Integration for enhanced prompts
+    // Google Gemini Native Image Generation Integration
     if (this.apiKey && this.baseUrl.includes('generativelanguage.googleapis.com')) {
       try {
-        // Use Gemini to enhance the prompt for better image generation
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.apiKey}`;
-        console.log('Gemini API URL:', url);
+        // Create a detailed prompt for Gemini image generation
+        const geminiPrompt = this.createGeminiImagePrompt(request);
+        console.log('Gemini image prompt:', geminiPrompt);
         
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: `You are a professional graphic designer. Create a detailed, specific prompt for an AI image generator to create a professional banner with these specifications:
-
-                Original Request: ${prompt}
-                
-                Banner Specifications:
-                - Dimensions: ${request.size.width}x${request.size.height} pixels
-                - Style: ${request.theme.style}
-                - Primary Color: ${request.theme.colorPalette.primary}
-                - Secondary Color: ${request.theme.colorPalette.secondary}
-                - Accent Color: ${request.theme.colorPalette.accent}
-                - Typography Style: ${request.theme.fontFamily}
-                - Use Case: ${request.useCase.name}
-                
-                Create a detailed, specific prompt that an AI image generator can use to create a professional, high-quality banner. Focus on:
-                1. Visual style and composition
-                2. Color scheme and contrast
-                3. Typography and text placement
-                4. Professional appearance
-                5. Brand-appropriate design
-                
-                Return only the enhanced prompt, nothing else.`
+        // Try different model names in case the preview model isn't available
+        const modelNames = [
+          'gemini-2.5-flash-image-preview',
+          'gemini-2.0-flash-exp',
+          'gemini-1.5-flash'
+        ];
+        
+        let lastError = null;
+        
+        for (const modelName of modelNames) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${this.apiKey}`;
+            console.log(`Trying model: ${modelName}`);
+            console.log('Gemini Image API URL:', url);
+        
+            const requestBody = {
+              contents: [{
+                parts: [
+                  {
+                    text: geminiPrompt
+                  }
+                ]
               }]
-            }],
-            generationConfig: {
-              temperature: 0.7,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: 1000,
+            };
+
+            console.log('Request body:', JSON.stringify(requestBody, null, 2));
+
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error(`Model ${modelName} failed:`, {
+                status: response.status,
+                statusText: response.statusText,
+                url: url,
+                errorBody: errorText
+              });
+              lastError = new Error(`Model ${modelName} failed: ${response.status} ${response.statusText} - ${errorText}`);
+              continue; // Try next model
             }
-          })
-        });
 
-        if (!response.ok) {
-          throw new Error(`Gemini API error: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        
-        // Extract enhanced prompt from Gemini response
-        let enhancedPrompt = prompt;
-        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
-          const textPart = data.candidates[0].content.parts.find((part: any) => part.text);
-          if (textPart && textPart.text) {
-            enhancedPrompt = textPart.text;
-            console.log('Enhanced prompt from Gemini:', enhancedPrompt);
+            const data = await response.json();
+            console.log(`Model ${modelName} response:`, data);
+            
+            if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
+              // Look for image data in the response parts
+              for (const part of data.candidates[0].content.parts) {
+                if (part.inlineData && part.inlineData.data) {
+                  // Convert base64 to blob URL
+                  const imageData = part.inlineData.data;
+                  const imageBlob = this.base64ToBlob(imageData, 'image/png');
+                  const imageUrl = URL.createObjectURL(imageBlob);
+                  
+                  console.log(`Generated image URL from ${modelName}:`, imageUrl);
+                  return { imageUrl };
+                }
+              }
+            }
+            
+            console.error(`No image data in ${modelName} response:`, data);
+            lastError = new Error(`No image data received from ${modelName}`);
+            continue; // Try next model
+          } catch (modelError) {
+            console.error(`Model ${modelName} error:`, modelError);
+            lastError = modelError;
+            continue; // Try next model
           }
         }
         
-        // For now, return a placeholder with the enhanced prompt
-        // In a real implementation, you would use this enhanced prompt with an actual image generation service
-        console.log('Enhanced prompt generated successfully');
-        return this.getPlaceholderImage(request, enhancedPrompt);
+        // If we get here, all models failed
+        throw lastError || new Error('All Gemini models failed');
       } catch (error) {
-        console.error('Gemini API error:', error);
+        console.error('Gemini Image API error:', error);
+        
+        // Try with a simpler prompt as fallback
+        try {
+          console.log('Attempting fallback with simpler prompt...');
+          const simplePrompt = `Create a professional banner with "${request.customText}" text on a ${request.backgroundColor} background, ${request.size.width}x${request.size.height} pixels, ${request.useCase.name} style.`;
+          
+          const fallbackResponse = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{ text: simplePrompt }]
+              }]
+            })
+          });
+
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            console.log('Fallback response successful:', fallbackData);
+            
+            if (fallbackData.candidates && fallbackData.candidates[0] && fallbackData.candidates[0].content && fallbackData.candidates[0].content.parts) {
+              for (const part of fallbackData.candidates[0].content.parts) {
+                if (part.inlineData && part.inlineData.data) {
+                  const imageData = part.inlineData.data;
+                  const imageBlob = this.base64ToBlob(imageData, 'image/png');
+                  const imageUrl = URL.createObjectURL(imageBlob);
+                  
+                  console.log('Generated image URL from fallback:', imageUrl);
+                  return { imageUrl };
+                }
+              }
+            }
+          }
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError);
+        }
+        
         return this.getPlaceholderImage(request);
       }
     }
@@ -173,9 +229,115 @@ export class AIService {
     return this.getPlaceholderImage(request);
   }
 
+  private createGeminiImagePrompt(request: BannerGenerationRequest): string {
+    const { size, theme, useCase, customText, context, backgroundColor, fontColor, fontSize, logoPosition, logo } = request;
+    
+    // Create a hyper-specific prompt following Gemini's best practices
+    let prompt = `Create a professional ${useCase.name.toLowerCase()} banner design with these exact specifications:
+
+BANNER SPECIFICATIONS:
+- Dimensions: ${size.width}x${size.height} pixels (${this.getAspectRatio(size)} aspect ratio)
+- Background: Solid ${backgroundColor} color
+- Text Color: ${fontColor}
+- Typography: ${theme.fontFamily} font family, ${fontSize}px size
+- Style: ${theme.style} aesthetic
+
+MAIN TEXT: "${customText}"`;
+
+    if (context) {
+      prompt += `\nCONTEXT: ${context}`;
+    }
+
+    // Add logo positioning instructions if logo is provided
+    if (logo) {
+      const logoPositionInstructions = this.getLogoPositionInstructions(logoPosition, size);
+      prompt += `\n\nLOGO REQUIREMENTS:
+- A logo will be overlaid on this banner at the ${logoPosition} position
+- ${logoPositionInstructions}
+- Ensure the main text and other elements do NOT overlap with the logo area
+- Leave adequate space around the logo position for clean integration
+- The logo area should be clearly defined and unobstructed`;
+    }
+
+    prompt += `\n\nDESIGN REQUIREMENTS:
+1. Create a clean, modern banner with ${backgroundColor} background
+2. Display the text "${customText}" prominently in ${fontColor} color using ${theme.fontFamily} typography
+3. Ensure excellent readability and professional appearance
+4. Use ${theme.colorPalette.primary} as primary accent color
+5. Incorporate ${theme.colorPalette.secondary} as secondary elements
+6. Add ${theme.colorPalette.accent} as accent highlights
+7. Design should be suitable for ${useCase.name} purposes
+8. Maintain proper contrast between background and text
+9. Create a ${theme.style} visual style
+10. Position elements to work well at ${size.width}x${size.height} resolution`;
+
+    if (logo) {
+      prompt += `
+11. IMPORTANT: Design the layout to accommodate a logo at the ${logoPosition} position
+12. Ensure NO text or design elements overlap with the logo placement area
+13. Create visual balance between the main content and the reserved logo space`;
+    }
+
+    prompt += `
+
+The banner should be visually striking, professional, and immediately communicate the ${useCase.name} purpose. Focus on clean typography, proper spacing, and a cohesive color scheme.`;
+
+    return prompt;
+  }
+
+  private getLogoPositionInstructions(logoPosition: string, size: { width: number; height: number }): string {
+    const instructions = {
+      'top-left': `Reserve the top-left corner area (approximately 15% of width and 20% of height from the top-left corner)`,
+      'top-center': `Reserve the top-center area (approximately 20% of width centered horizontally and 20% of height from the top)`,
+      'top-right': `Reserve the top-right corner area (approximately 15% of width and 20% of height from the top-right corner)`,
+      'center-left': `Reserve the left-center area (approximately 15% of width from the left edge and 20% of height centered vertically)`,
+      'center': `Reserve the center area (approximately 20% of width and 20% of height in the center of the banner)`,
+      'center-right': `Reserve the right-center area (approximately 15% of width from the right edge and 20% of height centered vertically)`,
+      'bottom-left': `Reserve the bottom-left corner area (approximately 15% of width and 20% of height from the bottom-left corner)`,
+      'bottom-center': `Reserve the bottom-center area (approximately 20% of width centered horizontally and 20% of height from the bottom)`,
+      'bottom-right': `Reserve the bottom-right corner area (approximately 15% of width and 20% of height from the bottom-right corner)`
+    };
+
+    return instructions[logoPosition as keyof typeof instructions] || `Reserve space at the ${logoPosition} position`;
+  }
+
+  private getAspectRatio(size: { width: number; height: number }): string {
+    const ratio = size.width / size.height;
+    
+    if (Math.abs(ratio - 16/9) < 0.1) return '16:9';
+    if (Math.abs(ratio - 4/3) < 0.1) return '4:3';
+    if (Math.abs(ratio - 3/2) < 0.1) return '3:2';
+    if (Math.abs(ratio - 1/1) < 0.1) return '1:1';
+    if (Math.abs(ratio - 2/1) < 0.1) return '2:1';
+    if (Math.abs(ratio - 3/1) < 0.1) return '3:1';
+    
+    // Default to 16:9 for most banner sizes
+    return '16:9';
+  }
+
+  private base64ToBlob(base64: string, mimeType: string): Blob {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
+  }
+
   private getPlaceholderImage(request: BannerGenerationRequest, enhancedPrompt?: string): { imageUrl: string } {
+    console.log('getPlaceholderImage called with:', {
+      customText: request.customText,
+      context: request.context,
+      enhancedPrompt: enhancedPrompt,
+      useCase: request.useCase.name
+    });
+
     // Prioritize custom text, then context, then enhanced prompt, then use case name
     let displayText = request.customText;
+    console.log('Initial displayText (customText):', displayText);
     
     // If no custom text but we have context, use a relevant phrase from context
     if (!displayText && request.context) {
@@ -184,6 +346,7 @@ export class AIService {
         .filter(word => word.length > 2)
         .slice(0, 4); // Take first 4 words
       displayText = contextWords.join(' ');
+      console.log('Using context words as displayText:', displayText);
     }
     
     if (!displayText && enhancedPrompt) {
@@ -192,6 +355,7 @@ export class AIService {
       const quotedMatch = enhancedPrompt.match(/"([^"]+)"/);
       if (quotedMatch) {
         displayText = quotedMatch[1];
+        console.log('Using quoted text from enhanced prompt:', displayText);
       } else {
         // Extract key descriptive words, skipping common words
         const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those'];
@@ -199,22 +363,28 @@ export class AIService {
           .filter(word => word.length > 3 && !commonWords.includes(word.toLowerCase()))
           .slice(0, 3); // Take first 3 meaningful words
         displayText = words.join(' ');
+        console.log('Using extracted words from enhanced prompt:', displayText);
       }
     }
     
     if (!displayText) {
       displayText = request.useCase.suggestedText[0] || request.useCase.name;
+      console.log('Using fallback displayText:', displayText);
     }
     
     // Truncate if too long to avoid URL issues
     const shortText = displayText.length > 30 ? displayText.substring(0, 27) + '...' : displayText;
+    console.log('Final displayText (after truncation):', shortText);
     
     // Use a more reliable placeholder service with simpler URL
     const bgColor = request.theme.colorPalette.primary.replace('#', '');
     const textColor = request.theme.colorPalette.text.replace('#', '');
     
+    const imageUrl = `https://dummyimage.com/${request.size.width}x${request.size.height}/${bgColor}/${textColor}?text=${encodeURIComponent(shortText)}`;
+    console.log('Generated dummyimage.com URL:', imageUrl);
+    
     return {
-      imageUrl: `https://dummyimage.com/${request.size.width}x${request.size.height}/${bgColor}/${textColor}?text=${encodeURIComponent(shortText)}`
+      imageUrl: imageUrl
     };
   }
 

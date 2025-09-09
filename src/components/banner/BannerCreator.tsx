@@ -42,6 +42,11 @@ export const BannerCreator: React.FC = () => {
       return;
     }
 
+    if (!customText.trim()) {
+      setError('Custom text is required');
+      return;
+    }
+
     try {
       setIsGenerating(true);
       setError(null);
@@ -50,7 +55,7 @@ export const BannerCreator: React.FC = () => {
         size: selectedSize,
         theme: selectedTheme,
         useCase: selectedUseCase,
-        customText: customText || undefined,
+        customText: customText.trim(),
         logo: logo || undefined,
         context: context || undefined,
         backgroundColor: backgroundColor,
@@ -139,6 +144,7 @@ export const BannerCreator: React.FC = () => {
             fontSize={fontSize}
             logoPosition={logoPosition}
             logo={logo}
+            error={error}
           />
         </div>
 
@@ -156,6 +162,7 @@ export const BannerCreator: React.FC = () => {
                 onChange={setCustomText}
                 placeholder="Enter custom text for your banner"
                 label="Custom Text"
+                required={true}
               />
 
               <ContextInput
@@ -196,11 +203,11 @@ export const BannerCreator: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                <GenerateButton
-                  onClick={handleGenerate}
-                  isLoading={isGenerating}
-                  disabled={isGenerating}
-                />
+                        <GenerateButton
+                          onClick={handleGenerate}
+                          isLoading={isGenerating}
+                          disabled={isGenerating || !customText.trim()}
+                        />
 
                 {generatedBanner && (
                   <>

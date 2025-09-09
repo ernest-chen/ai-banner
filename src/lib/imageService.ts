@@ -34,7 +34,7 @@ export class ImageService {
         finalImageBlob = await this.createCompositeImage(aiResult.imageUrl, logoUrl, request);
       } else {
         // Convert image URL to blob for storage
-        finalImageBlob = await this.urlToBlob(aiResult.imageUrl);
+        finalImageBlob = await this.urlToBlob(aiResult.imageUrl, request);
       }
       
       // Sanitize request object for Firestore (remove undefined values and File objects)
@@ -151,10 +151,16 @@ export class ImageService {
     }
   }
 
-  private async urlToBlob(url: string): Promise<Blob> {
+  private async urlToBlob(url: string, request?: BannerGenerationRequest): Promise<Blob> {
     try {
       console.log('Fetching image from URL:', url);
-      const response = await fetch(url);
+      
+      // Use proxy for external URLs to avoid CORS issues
+      const finalUrl = url.startsWith('http') && !url.includes(window.location.origin) 
+        ? `/api/proxy-image?url=${encodeURIComponent(url)}`
+        : url;
+      
+      const response = await fetch(finalUrl);
       if (!response.ok) {
         throw new Error(`Failed to fetch image: ${response.statusText}`);
       }
@@ -163,9 +169,8 @@ export class ImageService {
       console.error('Error in urlToBlob:', error);
       console.error('URL that failed:', url);
       
-      // Fallback: create a simple colored canvas as blob
-      console.log('Creating fallback image...');
-      return this.createFallbackImage();
+      // Don't create fallback image, throw error instead
+      throw new Error(`Failed to load image: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -353,28 +358,70 @@ export class ImageService {
     }
   }
 
-  private createFallbackImage(): Promise<Blob> {
+  private createFallbackImage(request?: BannerGenerationRequest): Promise<Blob> {
     return new Promise((resolve) => {
       const canvas = document.createElement('canvas');
-      canvas.width = 800;
-      canvas.height = 200;
+      
+      // Use actual banner dimensions if available, otherwise default
+      canvas.width = request?.size.width || 800;
+      canvas.height = request?.size.height || 200;
+      
       const ctx = canvas.getContext('2d');
       
       if (ctx) {
+        // Use theme colors if available
+        const bgColor = request?.theme.colorPalette.primary || '#2563eb';
+        const textColor = request?.theme.colorPalette.text || '#ffffff';
+        
         // Create a gradient background
         const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        gradient.addColorStop(0, '#2563eb');
-        gradient.addColorStop(1, '#1e40af');
+        gradient.addColorStop(0, bgColor);
+        gradient.addColorStop(1, bgColor);
         
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Add text
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 32px Arial, sans-serif';
+        // Add text - use custom text if available
+        const displayText = request?.customText || 'AI Banner Generated';
+        ctx.fillStyle = textColor;
+        
+        // Calculate font size based on canvas dimensions
+        const fontSize = Math.min(canvas.width / 20, canvas.height / 6, 48);
+        ctx.font = `bold ${fontSize}px Arial, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('AI Banner Generated', canvas.width / 2, canvas.height / 2);
+        
+        // Handle text wrapping for long text
+        const words = displayText.split(' ');
+        const lines = [];
+        let currentLine = '';
+        
+        for (const word of words) {
+          const testLine = currentLine + (currentLine ? ' ' : '') + word;
+          const metrics = ctx.measureText(testLine);
+          
+          if (metrics.width > canvas.width * 0.9) {
+            if (currentLine) {
+              lines.push(currentLine);
+              currentLine = word;
+            } else {
+              lines.push(word);
+            }
+          } else {
+            currentLine = testLine;
+          }
+        }
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+        
+        // Draw text lines
+        const lineHeight = fontSize * 1.2;
+        const startY = (canvas.height - (lines.length - 1) * lineHeight) / 2;
+        
+        lines.forEach((line, index) => {
+          ctx.fillText(line, canvas.width / 2, startY + index * lineHeight);
+        });
         
         // Convert to blob
         canvas.toBlob((blob) => {

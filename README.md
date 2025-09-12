@@ -35,6 +35,15 @@ AI Banner is a Next.js application that allows customers to create professional 
 - Theme and color palette selection
 - Background image options
 
+### 🔒 Security Features
+- **Server-Side AI Processing**: All AI generation happens securely on the server
+- **Input Validation**: Comprehensive sanitization prevents XSS and injection attacks
+- **Authentication**: Firebase JWT token verification on all API endpoints
+- **Rate Limiting**: Prevents abuse with configurable request limits
+- **Content Security Policy**: Advanced CSP headers protect against XSS
+- **Secure File Uploads**: Validated file types, sizes, and names
+- **Environment Security**: API keys and secrets never exposed to client
+
 ## Sample Output
 
 Here's an example of a professional LinkedIn banner created with AI Banner:
@@ -77,22 +86,27 @@ Here's an example of a professional LinkedIn banner created with AI Banner:
 
 3. **Set up environment variables**
    ```bash
-   cp env.example .env.local
+   cp env.secure.example .env.local
    ```
    
    Update `.env.local` with your configuration:
    ```env
-   # Firebase Configuration
+   # Client-Side Configuration (Public)
    NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key_here
    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
    NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
    NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-   # Google Gemini 2.5 Lite Configuration
-   NEXT_PUBLIC_AI_API_KEY=your_gemini_api_key_here
-   NEXT_PUBLIC_AI_BASE_URL=https://generativelanguage.googleapis.com
+   # Server-Side Configuration (Private - NEVER expose these)
+   FIREBASE_PROJECT_ID=your_project_id
+   FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your_project_id.iam.gserviceaccount.com
+   FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----"
+   FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
+   AI_API_KEY=your_gemini_api_key_here
+   AI_BASE_URL=https://generativelanguage.googleapis.com
    ```
 
 4. **Set up Firebase**
@@ -101,6 +115,7 @@ Here's an example of a professional LinkedIn banner created with AI Banner:
    - Enable Firestore Database
    - Enable Firebase Storage
    - Configure security rules
+   - Generate Firebase Admin SDK service account key
 
 5. **Run the development server**
 ```bash
@@ -167,6 +182,33 @@ service firebase.storage {
 }
 ```
 
+## Security Configuration
+
+### Environment Variables Security
+- **Client-side variables** (`NEXT_PUBLIC_*`): Safe to expose in browser
+- **Server-side variables** (no prefix): Never exposed to browser
+- **API Keys**: Always use server-side variables for sensitive keys
+
+### Security Features
+- **Input Validation**: All user inputs are sanitized and validated
+- **Rate Limiting**: 5 generations/min, 10 uploads/min per user
+- **Authentication**: Required for all API endpoints
+- **File Upload Security**: Type, size, and name validation
+- **Content Security Policy**: Prevents XSS attacks
+
+### Firebase Admin SDK Setup
+1. Go to Project Settings > Service Accounts
+2. Click "Generate new private key"
+3. Download the JSON file
+4. Extract the values for your `.env.local`:
+   - `FIREBASE_PROJECT_ID`: From the JSON file
+   - `FIREBASE_CLIENT_EMAIL`: From the JSON file
+   - `FIREBASE_PRIVATE_KEY`: From the JSON file (keep quotes and \n)
+
+### Security Documentation
+- See `SECURITY.md` for comprehensive security guide
+- See `SECURITY_IMPLEMENTATION_SUMMARY.md` for implementation details
+
 ## Google Gemini Integration
 
 The application is configured to work with Google Gemini 2.5 Lite for image generation. The AI service automatically handles:
@@ -190,6 +232,11 @@ The service is already configured and ready to use with your API key!
 ```
 src/
 ├── app/                    # Next.js app router
+│   ├── api/               # API routes
+│   │   ├── generate-banner/ # Secure AI generation endpoint
+│   │   ├── upload-logo/    # Secure logo upload endpoint
+│   │   ├── upload-image/   # Secure image upload endpoint
+│   │   └── proxy-image/    # Image proxy for CORS
 │   ├── gallery/           # Gallery page
 │   ├── globals.css        # Global styles
 │   ├── layout.tsx         # Root layout
@@ -208,10 +255,21 @@ src/
 │   ├── aiService.ts       # AI service integration
 │   ├── database.ts        # Database operations
 │   ├── firebase.ts        # Firebase configuration
-│   └── imageService.ts    # Image management
+│   ├── imageService.ts    # Image management
+│   ├── secureImageService.ts # Secure client-side service
+│   └── validation.ts      # Input validation and sanitization
 └── types/                 # TypeScript types
     └── banner.ts          # Banner-related types
 ```
+
+**Root Security Files:**
+- `SECURITY.md` - Comprehensive security documentation
+- `SECURITY_IMPLEMENTATION_SUMMARY.md` - Implementation guide
+- `env.secure.example` - Secure environment template
+- `firestore.rules` - Firestore security rules
+- `storage.rules` - Firebase Storage security rules
+- `firebase.json` - Firebase configuration
+- `src/middleware.ts` - Security headers middleware
 
 ## Key Features Implementation
 

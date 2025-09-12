@@ -12,6 +12,7 @@ if (!getApps().length) {
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     }),
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
   });
 }
 
@@ -89,11 +90,20 @@ class SecureAIService implements ServerAIService {
             for (const part of data.candidates[0].content.parts) {
               if (part.inlineData && part.inlineData.data) {
                 const imageData = part.inlineData.data;
-                const imageBlob = this.base64ToBlob(imageData, 'image/png');
-                const imageUrl = URL.createObjectURL(imageBlob);
+                console.log(`Received image data from ${modelName}, length: ${imageData.length}`);
+                console.log(`First 100 chars: ${imageData.substring(0, 100)}...`);
                 
-                console.log(`Server-side generated image URL from ${modelName}`);
-                return { success: true, imageUrl };
+                try {
+                  const imageBlob = this.base64ToBlob(imageData, 'image/png');
+                  const imageUrl = await this.uploadImageToStorage(imageBlob);
+                  
+                  console.log(`Server-side generated image URL from ${modelName}: ${imageUrl}`);
+                  return { success: true, imageUrl };
+                } catch (decodeError) {
+                  console.error(`Base64 decode error for ${modelName}:`, decodeError);
+                  console.log(`Problematic data sample: ${imageData.substring(0, 200)}...`);
+                  continue; // Try next model
+                }
               }
             }
           }
@@ -155,13 +165,66 @@ class SecureAIService implements ServerAIService {
   }
 
   private base64ToBlob(base64Data: string, mimeType: string): Blob {
-    const byteCharacters = atob(base64Data);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    // Clean the base64 data - remove any whitespace or newlines
+    const cleanBase64 = base64Data.replace(/\s/g, '');
+    
+    // Validate base64 format
+    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(cleanBase64)) {
+      throw new Error('Invalid base64 format');
     }
-    const byteArray = new Uint8Array(byteNumbers);
-    return new Blob([byteArray], { type: mimeType });
+    
+    // Ensure proper padding
+    let paddedBase64 = cleanBase64;
+    while (paddedBase64.length % 4 !== 0) {
+      paddedBase64 += '=';
+    }
+    
+    try {
+      const byteCharacters = atob(paddedBase64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      return new Blob([byteArray], { type: mimeType });
+    } catch (error) {
+      throw new Error(`Base64 decoding failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  private async uploadImageToStorage(imageBlob: Blob): Promise<string> {
+    try {
+      const { getStorage } = await import('firebase-admin/storage');
+      const bucket = getStorage().bucket();
+      
+      // Generate unique filename
+      const timestamp = Date.now();
+      const filename = `ai-generated/banner-${timestamp}.png`;
+      
+      // Convert blob to buffer
+      const buffer = Buffer.from(await imageBlob.arrayBuffer());
+      
+      // Upload to Firebase Storage
+      const file = bucket.file(filename);
+      await file.save(buffer, {
+        metadata: {
+          contentType: 'image/png',
+          cacheControl: 'public, max-age=31536000', // 1 year cache
+        },
+      });
+      
+      // Make file publicly accessible
+      await file.makePublic();
+      
+      // Return public URL
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
+      console.log(`Uploaded image to storage: ${publicUrl}`);
+      
+      return publicUrl;
+    } catch (error) {
+      console.error('Failed to upload image to storage:', error);
+      throw new Error(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 }
 

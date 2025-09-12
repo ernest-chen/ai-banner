@@ -1,0 +1,148 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getAuth } from 'firebase-admin/auth';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore, collection, addDoc } from 'firebase-admin/firestore';
+import { SecurityValidator } from '@/lib/validation';
+import { readFile, unlink } from 'fs/promises';
+import { join } from 'path';
+import { Storage } from '@google-cloud/storage';
+
+// Initialize Firebase Admin SDK (server-side only)
+if (!getApps().length) {
+  initializeApp({
+    credential: cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }),
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  });
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // Verify authentication
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const token = authHeader.substring(7);
+    let user;
+    
+    try {
+      user = await getAuth().verifyIdToken(token);
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    // Parse request body
+    const body = await request.json();
+    const { localImageUrl, bannerData } = body;
+    
+    if (!localImageUrl || !bannerData) {
+      return NextResponse.json({ error: 'Missing required data' }, { status: 400 });
+    }
+
+    // Validate banner data
+    const validatedData = SecurityValidator.validateBannerRequest(bannerData);
+    
+    try {
+      // Read the local file
+      const filename = localImageUrl.split('/').pop();
+      const filePath = join(process.cwd(), 'public', 'generated', filename);
+      const fileBuffer = await readFile(filePath);
+      
+      // Upload to Firebase Storage using Google Cloud Storage SDK
+      const bucketName = process.env.FIREBASE_STORAGE_BUCKET;
+      
+      // Generate unique filename for storage
+      const timestamp = Date.now();
+      const storageFilename = `banners/${user.uid}/banner-${timestamp}.png`;
+      
+      // Use Google Cloud Storage SDK with proper authentication
+      const storage = new Storage({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        credentials: {
+          client_email: process.env.FIREBASE_CLIENT_EMAIL,
+          private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        },
+      });
+      
+      const bucket = storage.bucket(bucketName);
+      const file = bucket.file(storageFilename);
+      
+      // Upload using stream to avoid buffer issues
+      const stream = file.createWriteStream({
+        metadata: {
+          contentType: 'image/png',
+          cacheControl: 'public, max-age=31536000',
+        },
+      });
+      
+      // Write buffer to stream
+      await new Promise((resolve, reject) => {
+        stream.on('error', reject);
+        stream.on('finish', resolve);
+        stream.end(fileBuffer);
+      });
+      
+      // Make file publicly accessible
+      await file.makePublic();
+      
+      // Get public URL
+      const publicUrl = `https://storage.googleapis.com/${bucketName}/${storageFilename}`;
+      
+      // Save banner metadata to Firestore
+      const db = getFirestore();
+      const bannerDoc = {
+        userId: user.uid,
+        imageUrl: publicUrl,
+        createdAt: new Date(),
+        ...validatedData,
+      };
+      
+      const docRef = await addDoc(collection(db, 'banners'), bannerDoc);
+      
+      // Delete local file to save space
+      try {
+        await unlink(filePath);
+        console.log(`Deleted local file: ${filePath}`);
+      } catch (deleteError) {
+        console.warn(`Failed to delete local file: ${deleteError}`);
+      }
+      
+      return NextResponse.json({
+        success: true,
+        bannerId: docRef.id,
+        imageUrl: publicUrl,
+        message: 'Banner saved to gallery successfully'
+      });
+      
+    } catch (uploadError) {
+      console.error('Failed to save banner to gallery:', uploadError);
+      return NextResponse.json({ 
+        error: 'Failed to save banner to gallery' 
+      }, { status: 500 });
+    }
+
+  } catch (error) {
+    console.error('Save to gallery API error:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error' 
+    }, { status: 500 });
+  }
+}
+
+// Handle preflight requests
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}

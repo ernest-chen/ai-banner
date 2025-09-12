@@ -3,6 +3,8 @@ import { getAuth } from 'firebase-admin/auth';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { SecurityValidator } from '@/lib/validation';
 import { BannerGenerationRequest } from '@/types/banner';
+import { writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
 
 // Initialize Firebase Admin SDK (server-side only)
 if (!getApps().length) {
@@ -40,85 +42,63 @@ class SecureAIService implements ServerAIService {
       const geminiPrompt = this.createGeminiImagePrompt(request);
       console.log('Server-side Gemini image prompt:', geminiPrompt);
       
-      // Try different model names in case the preview model isn't available
-      const modelNames = [
-        'gemini-2.5-flash-image-preview',
-        'gemini-2.0-flash-exp',
-        'gemini-1.5-flash'
-      ];
+      // Only use gemini-2.5-flash-image-preview - no fallbacks
+      const modelName = 'gemini-2.5-flash-image-preview';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${this.apiKey}`;
+      console.log(`Trying server-side model: ${modelName}`);
+    
+      const requestBody = {
+        contents: [{
+          parts: [
+            {
+              text: geminiPrompt
+            }
+          ]
+        }]
+      };
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Model ${modelName} failed:`, {
+          status: response.status,
+          statusText: response.statusText,
+          errorBody: errorText
+        });
+        throw new Error(`AI generation failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log(`Server-side model ${modelName} response received`);
       
-      let lastError = null;
-      
-      for (const modelName of modelNames) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${this.apiKey}`;
-          console.log(`Trying server-side model: ${modelName}`);
-        
-          const requestBody = {
-            contents: [{
-              parts: [
-                {
-                  text: geminiPrompt
-                }
-              ]
-            }]
-          };
-
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`Model ${modelName} failed:`, {
-              status: response.status,
-              statusText: response.statusText,
-              errorBody: errorText
-            });
-            lastError = new Error(`Model ${modelName} failed: ${response.status} ${response.statusText}`);
-            continue;
-          }
-
-          const data = await response.json();
-          console.log(`Server-side model ${modelName} response received`);
-          
-          if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
-            for (const part of data.candidates[0].content.parts) {
-              if (part.inlineData && part.inlineData.data) {
-                const imageData = part.inlineData.data;
-                console.log(`Received image data from ${modelName}, length: ${imageData.length}`);
-                console.log(`First 100 chars: ${imageData.substring(0, 100)}...`);
-                
-                try {
-                  const imageBlob = this.base64ToBlob(imageData, 'image/png');
-                  const imageUrl = await this.uploadImageToStorage(imageBlob);
-                  
-                  console.log(`Server-side generated image URL from ${modelName}: ${imageUrl}`);
-                  return { success: true, imageUrl };
-                } catch (decodeError) {
-                  console.error(`Base64 decode error for ${modelName}:`, decodeError);
-                  console.log(`Problematic data sample: ${imageData.substring(0, 200)}...`);
-                  continue; // Try next model
-                }
-              }
+      if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
+        for (const part of data.candidates[0].content.parts) {
+          if (part.inlineData && part.inlineData.data) {
+            const imageData = part.inlineData.data;
+            console.log(`Received image data from ${modelName}, length: ${imageData.length}`);
+            console.log(`First 100 chars: ${imageData.substring(0, 100)}...`);
+            
+            try {
+              const imageUrl = await this.saveImageLocally(imageData);
+              
+              console.log(`Server-side generated local image: ${imageUrl}`);
+              return { success: true, imageUrl };
+            } catch (saveError) {
+              console.error(`Failed to save image locally:`, saveError);
+              throw new Error(`Failed to save generated image: ${saveError instanceof Error ? saveError.message : 'Unknown error'}`);
             }
           }
-          
-          console.error(`No image data in ${modelName} response`);
-          lastError = new Error(`No image data received from ${modelName}`);
-          continue;
-        } catch (modelError) {
-          console.error(`Model ${modelName} error:`, modelError);
-          lastError = modelError;
-          continue;
         }
       }
       
-      throw lastError || new Error('All AI models failed');
+      throw new Error('No image data received from AI model');
     } catch (error) {
       console.error('Server-side AI generation error:', error);
       return { 
@@ -180,50 +160,46 @@ class SecureAIService implements ServerAIService {
     }
     
     try {
-      const byteCharacters = atob(paddedBase64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      return new Blob([byteArray], { type: mimeType });
+      // Use Node.js Buffer instead of browser's atob()
+      const buffer = Buffer.from(paddedBase64, 'base64');
+      return new Blob([buffer], { type: mimeType });
     } catch (error) {
       throw new Error(`Base64 decoding failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  private async uploadImageToStorage(imageBlob: Blob): Promise<string> {
+  private async saveImageLocally(base64Data: string): Promise<string> {
     try {
-      const { getStorage } = await import('firebase-admin/storage');
-      const bucket = getStorage().bucket();
-      
       // Generate unique filename
       const timestamp = Date.now();
-      const filename = `ai-generated/banner-${timestamp}.png`;
+      const filename = `banner-${timestamp}.png`;
       
-      // Convert blob to buffer
-      const buffer = Buffer.from(await imageBlob.arrayBuffer());
+      // Clean and convert base64 directly to buffer
+      const cleanBase64 = base64Data.replace(/\s/g, '');
+      let paddedBase64 = cleanBase64;
+      while (paddedBase64.length % 4 !== 0) {
+        paddedBase64 += '=';
+      }
       
-      // Upload to Firebase Storage
-      const file = bucket.file(filename);
-      await file.save(buffer, {
-        metadata: {
-          contentType: 'image/png',
-          cacheControl: 'public, max-age=31536000', // 1 year cache
-        },
-      });
+      const buffer = Buffer.from(paddedBase64, 'base64');
+      console.log(`Created buffer from base64, size: ${buffer.length} bytes`);
       
-      // Make file publicly accessible
-      await file.makePublic();
+      // Create public directory for images
+      const publicDir = join(process.cwd(), 'public', 'generated');
+      await mkdir(publicDir, { recursive: true });
       
-      // Return public URL
-      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
-      console.log(`Uploaded image to storage: ${publicUrl}`);
+      // Save file locally
+      const filePath = join(publicDir, filename);
+      await writeFile(filePath, buffer);
       
-      return publicUrl;
+      // Return local URL that can be served by Next.js
+      const localUrl = `/generated/${filename}`;
+      console.log(`Saved image locally: ${localUrl}`);
+      
+      return localUrl;
     } catch (error) {
-      console.error('Failed to upload image to storage:', error);
-      throw new Error(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Failed to save image locally:', error);
+      throw new Error(`Failed to save image locally: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

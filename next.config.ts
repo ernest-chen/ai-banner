@@ -21,6 +21,9 @@ const nextConfig: NextConfig = {
       {
         pathname: '/api/proxy-image**',
       },
+      {
+        pathname: '/generated/**',
+      },
     ],
   },
   
@@ -56,10 +59,8 @@ const nextConfig: NextConfig = {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
   
-  // Experimental features for better security
-  experimental: {
-    serverComponentsExternalPackages: ['firebase-admin'],
-  },
+  // External packages for server components
+  serverExternalPackages: ['firebase-admin'],
   
   // Webpack configuration for security
   webpack: (config, { isServer }) => {

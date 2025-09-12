@@ -15,6 +15,7 @@ import { BannerPreview } from './BannerPreview';
 import { GenerateButton } from './GenerateButton';
 import { DownloadButton } from './DownloadButton';
 import { SaveButton } from './SaveButton';
+import { SaveToGalleryButton } from './SaveToGalleryButton';
 import { BackgroundColorSelector } from './BackgroundColorSelector';
 import { LogoPositionSelector } from './LogoPositionSelector';
 import { FontColorSelector } from './FontColorSelector';
@@ -64,8 +65,15 @@ export const BannerCreator: React.FC = () => {
         fontSize: fontSize
       };
 
-      const result = await secureImageService.generateAndSaveBanner(request, user);
-      setGeneratedBanner(result.banner);
+      const result = await secureImageService.generateBanner(request, user);
+      setGeneratedBanner({
+        id: 'temp-' + Date.now(),
+        userId: user.id,
+        request,
+        imageUrl: result.imageUrl,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An unexpected error occurred');
     } finally {
@@ -74,10 +82,15 @@ export const BannerCreator: React.FC = () => {
   };
 
   const handleDownload = async () => {
-    if (generatedBanner && user) {
+    if (generatedBanner) {
       try {
-        // Download functionality will be implemented in secure service
-        console.log('Download banner:', generatedBanner);
+        // Create a download link for the local image
+        const link = document.createElement('a');
+        link.href = generatedBanner.imageUrl;
+        link.download = `banner-${generatedBanner.id}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to download banner');
       }
@@ -94,6 +107,32 @@ export const BannerCreator: React.FC = () => {
         });
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to save banner');
+      }
+    }
+  };
+
+  const handleSaveToGallery = async () => {
+    if (generatedBanner && user) {
+      try {
+        setIsGenerating(true);
+        const result = await secureImageService.saveToGallery(
+          generatedBanner.imageUrl,
+          generatedBanner.request,
+          user
+        );
+        
+        // Update the banner with the saved version
+        setGeneratedBanner({
+          ...generatedBanner,
+          id: result.bannerId,
+          imageUrl: result.imageUrl
+        });
+        
+        console.log('Banner saved to gallery:', result);
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Failed to save to gallery');
+      } finally {
+        setIsGenerating(false);
       }
     }
   };
@@ -210,10 +249,14 @@ export const BannerCreator: React.FC = () => {
                           disabled={isGenerating || !customText.trim()}
                         />
 
-                {generatedBanner && (
+                {generatedBanner && !isGenerating && (
                   <>
                     <DownloadButton onClick={handleDownload} />
-                    <SaveButton onClick={handleSave} />
+                    <SaveToGalleryButton 
+                      onClick={handleSaveToGallery}
+                      isLoading={false}
+                      disabled={generatedBanner.id.startsWith('temp-') === false}
+                    />
                   </>
                 )}
               </div>

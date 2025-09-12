@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore, collection, addDoc } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import { SecurityValidator } from '@/lib/validation';
-import { readFile, unlink } from 'fs/promises';
-import { join } from 'path';
-import { Storage } from '@google-cloud/storage';
 
 // Initialize Firebase Admin SDK (server-side only)
 if (!getApps().length) {
@@ -49,79 +46,32 @@ export async function POST(request: NextRequest) {
     const validatedData = SecurityValidator.validateBannerRequest(bannerData);
     
     try {
-      // Read the local file
-      const filename = localImageUrl.split('/').pop();
-      const filePath = join(process.cwd(), 'public', 'generated', filename);
-      const fileBuffer = await readFile(filePath);
+      // For now, just save the banner metadata to Firestore with the local image URL
+      // TODO: Upload to Firebase Storage when decoder issues are resolved
       
-      // Upload to Firebase Storage using Google Cloud Storage SDK
-      const bucketName = process.env.FIREBASE_STORAGE_BUCKET;
-      
-      // Generate unique filename for storage
-      const timestamp = Date.now();
-      const storageFilename = `banners/${user.uid}/banner-${timestamp}.png`;
-      
-      // Use Google Cloud Storage SDK with proper authentication
-      const storage = new Storage({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        credentials: {
-          client_email: process.env.FIREBASE_CLIENT_EMAIL,
-          private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        },
-      });
-      
-      const bucket = storage.bucket(bucketName);
-      const file = bucket.file(storageFilename);
-      
-      // Upload using stream to avoid buffer issues
-      const stream = file.createWriteStream({
-        metadata: {
-          contentType: 'image/png',
-          cacheControl: 'public, max-age=31536000',
-        },
-      });
-      
-      // Write buffer to stream
-      await new Promise((resolve, reject) => {
-        stream.on('error', reject);
-        stream.on('finish', resolve);
-        stream.end(fileBuffer);
-      });
-      
-      // Make file publicly accessible
-      await file.makePublic();
-      
-      // Get public URL
-      const publicUrl = `https://storage.googleapis.com/${bucketName}/${storageFilename}`;
+      console.log('Saving banner metadata to Firestore...');
       
       // Save banner metadata to Firestore
       const db = getFirestore();
       const bannerDoc = {
         userId: user.uid,
-        imageUrl: publicUrl,
+        imageUrl: localImageUrl, // Use local URL for now
         createdAt: new Date(),
         ...validatedData,
       };
       
-      const docRef = await addDoc(collection(db, 'banners'), bannerDoc);
-      
-      // Delete local file to save space
-      try {
-        await unlink(filePath);
-        console.log(`Deleted local file: ${filePath}`);
-      } catch (deleteError) {
-        console.warn(`Failed to delete local file: ${deleteError}`);
-      }
+      const docRef = await db.collection('banners').add(bannerDoc);
+      console.log(`Saved banner to Firestore with ID: ${docRef.id}`);
       
       return NextResponse.json({
         success: true,
         bannerId: docRef.id,
-        imageUrl: publicUrl,
-        message: 'Banner saved to gallery successfully'
+        imageUrl: localImageUrl,
+        message: 'Banner saved to gallery successfully (local storage)'
       });
       
-    } catch (uploadError) {
-      console.error('Failed to save banner to gallery:', uploadError);
+    } catch (saveError) {
+      console.error('Failed to save banner to gallery:', saveError);
       return NextResponse.json({ 
         error: 'Failed to save banner to gallery' 
       }, { status: 500 });

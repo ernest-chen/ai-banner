@@ -85,9 +85,7 @@ Here's an example of a professional LinkedIn banner created with AI Banner:
    ```
 
 3. **Set up environment variables**
-   ```bash
-   cp env.secure.example .env.local
-   ```
+   Create a `.env.local` file in the project root:
    
    Update `.env.local` with your configuration:
    ```env
@@ -265,7 +263,7 @@ src/
 **Root Security Files:**
 - `SECURITY.md` - Comprehensive security documentation
 - `SECURITY_IMPLEMENTATION_SUMMARY.md` - Implementation guide
-- `env.secure.example` - Secure environment template
+- `.env.local` - Environment variables (create from template above)
 - `firestore.rules` - Firestore security rules
 - `storage.rules` - Firebase Storage security rules
 - `firebase.json` - Firebase configuration

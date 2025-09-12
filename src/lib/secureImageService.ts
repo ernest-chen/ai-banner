@@ -50,7 +50,7 @@ export class SecureImageService {
         throw new Error('Authentication required');
       }
 
-      // Save to gallery (uploads to Firebase Storage and saves to Firestore)
+      // Validate banner data on server side
       const response = await fetch(`${this.baseUrl}/api/save-to-gallery`, {
         method: 'POST',
         headers: {
@@ -65,13 +65,28 @@ export class SecureImageService {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save to gallery');
+        throw new Error(errorData.error || 'Failed to validate banner data');
       }
 
-      const result = await response.json();
+      const validationResult = await response.json();
+      
+      // Debug user object
+      console.log('User object in saveToGallery:', user);
+      console.log('User ID:', user?.id);
+      
+      if (!user?.id) {
+        throw new Error('User ID is required for saving to gallery');
+      }
+      
+      // Now upload image to Firebase Storage using client SDK
+      const firebaseStorageUrl = await this.uploadImageToFirebaseStorage(localImageUrl, user.id);
+      
+      // Save metadata to Firestore using client SDK
+      const bannerId = await this.saveBannerToFirestore(validationResult.validatedData, firebaseStorageUrl, user.id);
+      
       return {
-        bannerId: result.bannerId,
-        imageUrl: result.imageUrl
+        bannerId,
+        imageUrl: firebaseStorageUrl
       };
 
     } catch (error) {
@@ -131,6 +146,105 @@ export class SecureImageService {
     }
 
     return await response.json();
+  }
+
+  private async uploadImageToFirebaseStorage(localImageUrl: string, userId: string): Promise<string> {
+    try {
+      // Import Firebase Storage and Auth
+      const { getStorage, ref, uploadBytesResumable, getDownloadURL } = await import('firebase/storage');
+      const { auth } = await import('./firebase');
+      
+      // Check if user is authenticated
+      if (!auth.currentUser) {
+        throw new Error('User must be authenticated to upload images');
+      }
+      
+      console.log('Current Firebase user:', auth.currentUser?.uid);
+      console.log('Expected userId:', userId);
+      
+      // Ensure the current user matches the expected userId
+      if (auth.currentUser?.uid !== userId) {
+        throw new Error(`User ID mismatch: current user ${auth.currentUser?.uid} does not match expected ${userId}`);
+      }
+      
+      // Convert local image URL to blob
+      const response = await fetch(localImageUrl);
+      if (!response.ok) {
+        throw new Error('Failed to fetch local image');
+      }
+      
+      const blob = await response.blob();
+      
+      // Create storage reference
+      const storage = getStorage();
+      const fileName = `banners/${userId}/banner-${Date.now()}.png`;
+      const storageRef = ref(storage, fileName);
+      
+      console.log('Uploading to path:', fileName);
+      
+      // Upload file with metadata
+      const metadata = {
+        contentType: 'image/png',
+      };
+      
+      const uploadTask = uploadBytesResumable(storageRef, blob, metadata);
+      
+      // Wait for upload to complete
+      const snapshot = await new Promise((resolve, reject) => {
+        uploadTask.on('state_changed',
+          (snapshot) => {
+            // Progress monitoring (optional)
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            console.log('Upload is ' + progress + '% done');
+          },
+          (error) => {
+            console.error('Upload error:', error);
+            reject(error);
+          },
+          () => {
+            resolve(uploadTask.snapshot);
+          }
+        );
+      });
+      
+      // Get download URL
+      const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+      console.log('File available at', downloadURL);
+      
+      return downloadURL;
+      
+    } catch (error) {
+      console.error('Failed to upload image to Firebase Storage:', error);
+      throw error;
+    }
+  }
+
+  private async saveBannerToFirestore(validatedData: BannerGenerationRequest, imageUrl: string, userId: string): Promise<string> {
+    try {
+      // Import Firestore
+      const { getFirestore, collection, addDoc } = await import('firebase/firestore');
+      
+      // Create banner document matching GeneratedBanner interface
+      const bannerDoc = {
+        userId,
+        imageUrl,
+        createdAt: new Date(),
+        request: validatedData, // Nest the banner data under 'request' property
+        tags: [], // Default empty tags
+        isPublic: false, // Default to private
+      };
+      
+      // Save to Firestore
+      const db = getFirestore();
+      const docRef = await addDoc(collection(db, 'banners'), bannerDoc);
+      
+      console.log(`Saved banner to Firestore with ID: ${docRef.id}`);
+      return docRef.id;
+      
+    } catch (error) {
+      console.error('Failed to save banner to Firestore:', error);
+      throw error;
+    }
   }
 
 }

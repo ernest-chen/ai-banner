@@ -73,7 +73,7 @@ export class DatabaseService {
       createdAt: doc.data().createdAt?.toDate() || new Date()
     })) as GeneratedBanner[];
     
-    console.log('Retrieved banners:', banners.map(b => ({ id: b.id, imageUrl: b.imageUrl, useCase: b.request.useCase.name })));
+    console.log('Retrieved banners:', banners.map(b => ({ id: b.id, imageUrl: b.imageUrl, hasRequest: !!b.request })));
     return banners;
   }
 

@@ -29,10 +29,10 @@ export const BannerGallery: React.FC<BannerGalleryProps> = ({
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       return (
-        banner.request.useCase.name.toLowerCase().includes(searchLower) ||
-        banner.request.theme.name.toLowerCase().includes(searchLower) ||
-        banner.request.size.name.toLowerCase().includes(searchLower) ||
-        banner.tags.some(tag => tag.toLowerCase().includes(searchLower))
+        (banner.request?.useCase?.name?.toLowerCase() || '').includes(searchLower) ||
+        (banner.request?.theme?.name?.toLowerCase() || '').includes(searchLower) ||
+        (banner.request?.size?.name?.toLowerCase() || '').includes(searchLower) ||
+        (banner.tags || []).some(tag => tag.toLowerCase().includes(searchLower))
       );
     }
 

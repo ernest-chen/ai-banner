@@ -81,16 +81,21 @@ export const auth = (() => {
   });
 })();
 
+// Export getter function for direct Firestore instance access
+export function getDb() {
+  const instance = getDbInstance();
+  if (!instance) {
+    throw new Error('Firestore not initialized. Check your environment variables.');
+  }
+  return instance;
+}
+
+// Export Proxy for property access (for backward compatibility)
 export const db = (() => {
   let instance: ReturnType<typeof getFirestore> | null = null;
   return new Proxy({} as ReturnType<typeof getFirestore>, {
     get(_target, prop) {
-      if (!instance) {
-        instance = getDbInstance();
-        if (!instance) {
-          throw new Error('Firestore not initialized. Check your environment variables.');
-        }
-      }
+      instance = getDb();
       const value = instance[prop as keyof typeof instance];
       // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
       return typeof value === 'function' ? (value as Function).bind(instance) : value;

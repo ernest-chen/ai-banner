@@ -13,13 +13,13 @@ import {
   Timestamp 
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from './firebase';
+import { getDb, storage } from './firebase';
 import { GeneratedBanner, User, BannerGenerationRequest } from '@/types/banner';
 
 export class DatabaseService {
   // User operations
   async createUser(user: User): Promise<void> {
-    const userRef = doc(db, 'users', user.id);
+    const userRef = doc(getDb(), 'users', user.id);
     await updateDoc(userRef, {
       ...user,
       createdAt: Timestamp.fromDate(user.createdAt)
@@ -27,7 +27,7 @@ export class DatabaseService {
   }
 
   async getUser(userId: string): Promise<User | null> {
-    const userRef = doc(db, 'users', userId);
+    const userRef = doc(getDb(), 'users', userId);
     const userSnap = await getDoc(userRef);
     
     if (userSnap.exists()) {
@@ -46,13 +46,13 @@ export class DatabaseService {
   }
 
   async updateUser(userId: string, updates: Partial<User>): Promise<void> {
-    const userRef = doc(db, 'users', userId);
+    const userRef = doc(getDb(), 'users', userId);
     await updateDoc(userRef, updates);
   }
 
   // Banner operations
   async saveBanner(banner: Omit<GeneratedBanner, 'id'>): Promise<string> {
-    const bannerRef = await addDoc(collection(db, 'banners'), {
+    const bannerRef = await addDoc(collection(getDb(), 'banners'), {
       ...banner,
       createdAt: Timestamp.fromDate(banner.createdAt)
     });
@@ -61,7 +61,7 @@ export class DatabaseService {
 
   async getUserBanners(userId: string): Promise<GeneratedBanner[]> {
     const q = query(
-      collection(db, 'banners'),
+      collection(getDb(), 'banners'),
       where('userId', '==', userId),
       orderBy('createdAt', 'desc')
     );
@@ -79,7 +79,7 @@ export class DatabaseService {
 
   async getPublicBanners(limitCount: number = 20): Promise<GeneratedBanner[]> {
     const q = query(
-      collection(db, 'banners'),
+      collection(getDb(), 'banners'),
       where('isPublic', '==', true),
       orderBy('createdAt', 'desc'),
       limit(limitCount)
@@ -94,12 +94,12 @@ export class DatabaseService {
   }
 
   async deleteBanner(bannerId: string): Promise<void> {
-    const bannerRef = doc(db, 'banners', bannerId);
+    const bannerRef = doc(getDb(), 'banners', bannerId);
     await deleteDoc(bannerRef);
   }
 
   async updateBanner(bannerId: string, updates: Partial<GeneratedBanner>): Promise<void> {
-    const bannerRef = doc(db, 'banners', bannerId);
+    const bannerRef = doc(getDb(), 'banners', bannerId);
     await updateDoc(bannerRef, updates);
   }
 
@@ -127,7 +127,7 @@ export class DatabaseService {
 
   // Analytics operations
   async trackBannerGeneration(userId: string, request: BannerGenerationRequest): Promise<void> {
-    await addDoc(collection(db, 'analytics'), {
+      await addDoc(collection(getDb(), 'analytics'), {
       type: 'banner_generation',
       userId,
       request: {
@@ -143,7 +143,7 @@ export class DatabaseService {
   }
 
   async trackBannerDownload(bannerId: string, userId: string): Promise<void> {
-    await addDoc(collection(db, 'analytics'), {
+      await addDoc(collection(getDb(), 'analytics'), {
       type: 'banner_download',
       bannerId,
       userId,
@@ -157,7 +157,7 @@ export class DatabaseService {
     const endOfMonth = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth() + 1, 0);
     
     const q = query(
-      collection(db, 'analytics'),
+      collection(getDb(), 'analytics'),
       where('userId', '==', userId),
       where('type', '==', 'banner_generation'),
       where('timestamp', '>=', Timestamp.fromDate(startOfMonth)),

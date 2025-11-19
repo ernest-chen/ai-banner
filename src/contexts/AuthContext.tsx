@@ -10,7 +10,7 @@ import {
   OAuthProvider
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { auth, db, googleProvider, appleProvider } from '@/lib/firebase';
+import { auth, getDb, googleProvider, appleProvider } from '@/lib/firebase';
 import { User } from '@/types/banner';
 
 interface AuthContextType {
@@ -56,7 +56,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const getUserDocument = async (firebaseUser: FirebaseUser): Promise<User> => {
-    const userRef = doc(db, 'users', firebaseUser.uid);
+    // Get the actual Firestore instance
+    const dbInstance = getDb();
+    const userRef = doc(dbInstance, 'users', firebaseUser.uid);
     const userSnap = await getDoc(userRef);
 
     if (userSnap.exists()) {

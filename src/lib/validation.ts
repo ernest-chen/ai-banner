@@ -6,12 +6,18 @@ export class SecurityValidator {
   private static readonly MAX_CONTEXT_LENGTH = 1000;
   private static readonly ALLOWED_FONT_SIZES = ['12', '14', '16', '18', '20', '24', '28', '32', '36', '48'];
   private static readonly ALLOWED_BACKGROUND_COLORS = [
-    '#ffffff', '#000000', '#2563eb', '#dc2626', '#059669', '#ea580c', 
-    '#7c3aed', '#6b7280', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'
+    '', // Empty string for 'Auto' option
+    '#ffffff', '#f3f4f6', '#6b7280', '#374151', '#000000', // White, Light Gray, Gray, Dark Gray, Black
+    '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', // Blue, Indigo, Purple, Pink
+    '#ef4444', '#f97316', '#eab308', // Red, Orange, Yellow
+    '#22c55e', '#14b8a6', '#06b6d4' // Green, Teal, Cyan
   ];
   private static readonly ALLOWED_FONT_COLORS = [
-    '#ffffff', '#000000', '#2563eb', '#dc2626', '#059669', '#ea580c',
-    '#7c3aed', '#6b7280', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'
+    '', // Empty string for 'Auto' option
+    '#000000', '#ffffff', '#374151', '#6b7280', '#9ca3af', // Black, White, Dark Gray, Gray, Light Gray
+    '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', // Blue, Indigo, Purple, Pink
+    '#ef4444', '#f97316', '#eab308', // Red, Orange, Yellow
+    '#22c55e', '#14b8a6', '#06b6d4' // Green, Teal, Cyan
   ];
   private static readonly ALLOWED_LOGO_POSITIONS = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'];
 
@@ -101,16 +107,16 @@ export class SecurityValidator {
       request.context = this.sanitizeText(request.context, this.MAX_CONTEXT_LENGTH);
     }
 
-    // Validate background color
-    if (request.backgroundColor && request.backgroundColor !== '') {
-      if (!this.ALLOWED_BACKGROUND_COLORS.includes(request.backgroundColor)) {
+    // Validate background color (allow empty string for 'Auto')
+    if (request.backgroundColor !== undefined && request.backgroundColor !== null) {
+      if (request.backgroundColor !== '' && !this.ALLOWED_BACKGROUND_COLORS.includes(request.backgroundColor)) {
         throw new Error('Invalid background color selected');
       }
     }
 
-    // Validate font color
-    if (request.fontColor && request.fontColor !== '') {
-      if (!this.ALLOWED_FONT_COLORS.includes(request.fontColor)) {
+    // Validate font color (allow empty string for 'Auto')
+    if (request.fontColor !== undefined && request.fontColor !== null) {
+      if (request.fontColor !== '' && !this.ALLOWED_FONT_COLORS.includes(request.fontColor)) {
         throw new Error('Invalid font color selected');
       }
     }

@@ -2,13 +2,15 @@
 
 import React from 'react';
 
+type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center' | undefined;
+
 interface LogoPositionSelectorProps {
-  selectedPosition: string;
-  onPositionChange: (position: string) => void;
+  selectedPosition: LogoPosition;
+  onPositionChange: (position: LogoPosition) => void;
 }
 
-const LOGO_POSITIONS = [
-  { value: '', label: 'Auto', description: 'AI chooses', isAuto: true },
+const LOGO_POSITIONS: Array<{ value: LogoPosition; label: string; description?: string; icon?: string; isAuto?: boolean }> = [
+  { value: undefined, label: 'Auto', description: 'AI chooses', isAuto: true },
   { value: 'top-left', label: 'Top Left', icon: '↖️' },
   { value: 'top-right', label: 'Top Right', icon: '↗️' },
   { value: 'center', label: 'Center', icon: '⭕' },
@@ -28,7 +30,7 @@ export const LogoPositionSelector: React.FC<LogoPositionSelectorProps> = ({
       <div className="grid grid-cols-3 gap-2">
         {LOGO_POSITIONS.map((position) => (
           <button
-            key={position.value || 'auto'}
+            key={position.value ?? 'auto'}
             onClick={() => onPositionChange(position.value)}
             className={`p-3 rounded-lg border-2 transition-all hover:bg-gray-50 ${
               selectedPosition === position.value

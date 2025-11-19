@@ -38,7 +38,7 @@ export class ImageService {
       }
       
       // Sanitize request object for Firestore (remove undefined values and File objects)
-      const sanitizedRequest = this.sanitizeRequestForFirestore(request);
+      const sanitizedRequest = this.sanitizeRequestForFirestore(request) as unknown as BannerGenerationRequest & { logoUrl?: string };
       
       // Add logo URL to sanitized request if available
       if (logoUrl) {
@@ -436,7 +436,7 @@ export class ImageService {
 
   private sanitizeRequestForFirestore(request: BannerGenerationRequest): Record<string, unknown> {
     // Create a deep copy of the request object and remove undefined values
-    const sanitized = { ...request };
+    const sanitized: Record<string, unknown> = { ...request };
     
     // Remove undefined optional fields
     if (sanitized.customText === undefined) {

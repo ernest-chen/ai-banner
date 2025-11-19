@@ -123,7 +123,7 @@ export class SecurityValidator {
     }
 
     // Validate logo position
-    if (request.logoPosition && request.logoPosition !== '') {
+    if (request.logoPosition) {
       if (!this.ALLOWED_LOGO_POSITIONS.includes(request.logoPosition)) {
         throw new Error('Invalid logo position selected');
       }

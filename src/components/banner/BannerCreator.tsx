@@ -31,7 +31,7 @@ export const BannerCreator: React.FC = () => {
   const [fontColor, setFontColor] = useState('');
   const [fontSize, setFontSize] = useState('');
   const [backgroundColor, setBackgroundColor] = useState('');
-  const [logoPosition, setLogoPosition] = useState<string>('');
+  const [logoPosition, setLogoPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center' | undefined>(undefined);
   const [generatedBanner, setGeneratedBanner] = useState<GeneratedBanner | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +71,8 @@ export const BannerCreator: React.FC = () => {
         request,
         imageUrl: result.imageUrl,
         createdAt: new Date(),
-        updatedAt: new Date()
+        tags: [],
+        isPublic: false
       });
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An unexpected error occurred');

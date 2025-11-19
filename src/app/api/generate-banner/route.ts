@@ -135,7 +135,7 @@ class SecureAIService implements ServerAIService {
       prompt += `Font size should be ${fontSize}px. `;
     }
     
-    if (logoPosition && logoPosition !== '') {
+    if (logoPosition) {
       prompt += `Leave space for a logo to be positioned at ${logoPosition}. `;
     }
     

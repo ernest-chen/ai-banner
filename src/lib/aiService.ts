@@ -188,7 +188,9 @@ export class AIService {
           console.log('Attempting fallback with simpler prompt...');
           const simplePrompt = `Create a professional banner with "${request.customText}" text on a ${request.backgroundColor} background, ${request.size.width}x${request.size.height} pixels, ${request.useCase.name} style.`;
           
-          const fallbackResponse = await fetch(url, {
+          // Use the first model for fallback
+          const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${this.apiKey}`;
+          const fallbackResponse = await fetch(fallbackUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'

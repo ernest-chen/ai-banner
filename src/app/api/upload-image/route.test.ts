@@ -1,8 +1,11 @@
 import { POST, OPTIONS } from './route';
 import { NextRequest, NextResponse } from 'next/server';
-const mockGetAuth = require('firebase-admin/auth').getAuth;
-const mockGetStorage = require('firebase-admin/storage').getStorage;
+import { getAuth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
 import { SecurityValidator } from '@/lib/validation';
+
+const mockGetAuth = getAuth as jest.MockedFunction<typeof getAuth>;
+const mockGetStorage = getStorage as jest.MockedFunction<typeof getStorage>;
 
 jest.mock('firebase-admin/auth', () => ({
     getAuth: jest.fn(),
@@ -56,9 +59,12 @@ describe('POST /api/upload-image', () => {
     function createRequest({
         auth = true,
         token = mockToken,
-        file = mockFile,
         formData = mockFormData,
-    } = {}) {
+    }: {
+        auth?: boolean;
+        token?: string;
+        formData?: typeof mockFormData;
+    } = {}): NextRequest {
         return {
             headers: {
                 get: jest.fn((key: string) =>
@@ -77,26 +83,29 @@ describe('POST /api/upload-image', () => {
         const req = createRequest({ auth: false });
         const res = await POST(req);
         expect(res).toBeInstanceOf(NextResponse);
-        expect(await (res as any)._getJSON()).toEqual({ error: 'Unauthorized' });
-        expect((res as any).status).toBe(401);
+        const resWithGetJSON = res as NextResponseWithGetJSON;
+        expect(await resWithGetJSON._getJSON()).toEqual({ error: 'Unauthorized' });
+        expect(res.status).toBe(401);
     });
 
     it('returns 401 if token is invalid', async () => {
         mockGetAuth.mockReturnValue({
             verifyIdToken: jest.fn().mockRejectedValue(new Error('bad token')),
-        });
+        } as never);
         const req = createRequest();
         const res = await POST(req);
-        expect(await (res as any)._getJSON()).toEqual({ error: 'Invalid token' });
-        expect((res as any).status).toBe(401);
+        const resWithGetJSON = res as NextResponseWithGetJSON;
+        expect(await resWithGetJSON._getJSON()).toEqual({ error: 'Invalid token' });
+        expect(res.status).toBe(401);
     });
 
     it('returns 429 if rate limit exceeded', async () => {
         SecurityValidator.checkRateLimit.mockReturnValue(false);
         const req = createRequest();
         const res = await POST(req);
-        expect(await (res as any)._getJSON()).toEqual({ error: 'Rate limit exceeded' });
-        expect((res as any).status).toBe(429);
+        const resWithGetJSON = res as NextResponseWithGetJSON;
+        expect(await resWithGetJSON._getJSON()).toEqual({ error: 'Rate limit exceeded' });
+        expect(res.status).toBe(429);
     });
 
     it('returns 400 if no file provided', async () => {
@@ -104,8 +113,9 @@ describe('POST /api/upload-image', () => {
             formData: { get: jest.fn(() => null) },
         });
         const res = await POST(req);
-        expect(await (res as any)._getJSON()).toEqual({ error: 'No file provided' });
-        expect((res as any).status).toBe(400);
+        const resWithGetJSON = res as NextResponseWithGetJSON;
+        expect(await resWithGetJSON._getJSON()).toEqual({ error: 'No file provided' });
+        expect(res.status).toBe(400);
     });
 
     it('returns 413 if file size too large', async () => {
@@ -114,8 +124,9 @@ describe('POST /api/upload-image', () => {
         });
         const req = createRequest();
         const res = await POST(req);
-        expect(await (res as any)._getJSON()).toEqual({ error: 'File size too large' });
-        expect((res as any).status).toBe(413);
+        const resWithGetJSON = res as NextResponseWithGetJSON;
+        expect(await resWithGetJSON._getJSON()).toEqual({ error: 'File size too large' });
+        expect(res.status).toBe(413);
     });
 
     it('returns 400 if invalid file type', async () => {
@@ -124,8 +135,9 @@ describe('POST /api/upload-image', () => {
         });
         const req = createRequest();
         const res = await POST(req);
-        expect(await (res as any)._getJSON()).toEqual({ error: 'Invalid file type' });
-        expect((res as any).status).toBe(400);
+        const resWithGetJSON = res as NextResponseWithGetJSON;
+        expect(await resWithGetJSON._getJSON()).toEqual({ error: 'Invalid file type' });
+        expect(res.status).toBe(400);
     });
 
     it('returns 500 on unexpected error', async () => {
@@ -134,18 +146,20 @@ describe('POST /api/upload-image', () => {
         });
         const req = createRequest();
         const res = await POST(req);
-        expect(await (res as any)._getJSON()).toEqual({ error: 'Internal server error' });
-        expect((res as any).status).toBe(500);
+        const resWithGetJSON = res as NextResponseWithGetJSON;
+        expect(await resWithGetJSON._getJSON()).toEqual({ error: 'Internal server error' });
+        expect(res.status).toBe(500);
     });
 
     it('returns 200 and image url on success', async () => {
         const req = createRequest();
         const res = await POST(req);
-        const json = await (res as any)._getJSON();
+        const resWithGetJSON = res as NextResponseWithGetJSON;
+        const json = await resWithGetJSON._getJSON() as { success: boolean; imageUrl: string; fileName: string };
         expect(json.success).toBe(true);
         expect(json.imageUrl).toMatch(/^https:\/\/storage\.googleapis\.com\/bucket-name\/banners\//);
         expect(json.fileName).toMatch(/^banners\//);
-        expect((res as any).status).toBe(200);
+        expect(res.status).toBe(200);
     });
 });
 
@@ -161,11 +175,14 @@ describe('OPTIONS /api/upload-image', () => {
 });
 
 // Patch NextResponse for easier assertions in tests
+interface NextResponseWithGetJSON extends NextResponse {
+    _getJSON(): Promise<unknown>;
+    _bodyInit?: string;
+}
+
 Object.defineProperty(NextResponse.prototype, '_getJSON', {
-    value: async function () {
-        // @ts-ignore
+    value: async function (this: NextResponseWithGetJSON) {
         if (this._bodyInit) {
-            // @ts-ignore
             return JSON.parse(this._bodyInit);
         }
         // Try to read from body stream

@@ -1,10 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import { GeneratedBanner } from '@/types/banner';
-import { Download, ExternalLink, MoreVertical, Eye, EyeOff, Trash2, Tag, Calendar } from 'lucide-react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { Download, ExternalLink, Calendar } from 'lucide-react';
 
 interface BannerCardProps {
   banner: GeneratedBanner;
@@ -13,6 +11,7 @@ interface BannerCardProps {
   priority?: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const BannerCard: React.FC<BannerCardProps> = ({ banner, onDelete, onUpdate, priority }) => {
   const [isLoading, setIsLoading] = useState(false);
   
@@ -43,6 +42,8 @@ export const BannerCard: React.FC<BannerCardProps> = ({ banner, onDelete, onUpda
     }
   };
 
+  // These handlers are kept for future use with dropdown menu
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDelete = async () => {
     try {
       setIsLoading(true);
@@ -54,6 +55,7 @@ export const BannerCard: React.FC<BannerCardProps> = ({ banner, onDelete, onUpda
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleToggleVisibility = async () => {
     try {
       setIsLoading(true);

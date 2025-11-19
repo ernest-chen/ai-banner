@@ -434,7 +434,7 @@ export class ImageService {
     });
   }
 
-  private sanitizeRequestForFirestore(request: BannerGenerationRequest): any {
+  private sanitizeRequestForFirestore(request: BannerGenerationRequest): Record<string, unknown> {
     // Create a deep copy of the request object and remove undefined values
     const sanitized = { ...request };
     

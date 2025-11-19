@@ -32,9 +32,10 @@ export const AuthButton: React.FC = () => {
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-2">
           {user.photoURL ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={user.photoURL}
-              alt={user.displayName}
+              alt={user.displayName || 'User'}
               className="w-8 h-8 rounded-full"
             />
           ) : (

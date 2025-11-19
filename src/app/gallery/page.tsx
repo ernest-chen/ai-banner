@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { BannerGallery } from '@/components/gallery/BannerGallery';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,15 +13,7 @@ export default function GalleryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user && !authLoading) {
-      loadBanners();
-    } else if (!user && !authLoading) {
-      setLoading(false);
-    }
-  }, [user, authLoading]);
-
-  const loadBanners = async () => {
+  const loadBanners = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -33,7 +25,15 @@ export default function GalleryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user && !authLoading) {
+      loadBanners();
+    } else if (!user && !authLoading) {
+      setLoading(false);
+    }
+  }, [user, authLoading, loadBanners]);
 
   if (authLoading || loading) {
     return (

@@ -14,7 +14,6 @@ import { ContextInput } from './ContextInput';
 import { BannerPreview } from './BannerPreview';
 import { GenerateButton } from './GenerateButton';
 import { DownloadButton } from './DownloadButton';
-import { SaveButton } from './SaveButton';
 import { SaveToGalleryButton } from './SaveToGalleryButton';
 import { BackgroundColorSelector } from './BackgroundColorSelector';
 import { LogoPositionSelector } from './LogoPositionSelector';
@@ -93,20 +92,6 @@ export const BannerCreator: React.FC = () => {
         document.body.removeChild(link);
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to download banner');
-      }
-    }
-  };
-
-  const handleSave = async () => {
-    if (generatedBanner) {
-      try {
-        await imageService.toggleBannerVisibility(generatedBanner);
-        setGeneratedBanner({
-          ...generatedBanner,
-          isPublic: !generatedBanner.isPublic
-        });
-      } catch (error) {
-        setError(error instanceof Error ? error.message : 'Failed to save banner');
       }
     }
   };

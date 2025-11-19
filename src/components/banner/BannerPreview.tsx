@@ -248,7 +248,7 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
       {!generatedImageUrl && !isGenerating && (
         <div className="mt-4 p-4 bg-blue-50 rounded-lg">
           <p className="text-sm text-blue-800">
-            This is a preview of how your banner will look. Click "Generate Banner" to create the final version with AI.
+            This is a preview of how your banner will look. Click &quot;Generate Banner&quot; to create the final version with AI.
           </p>
         </div>
       )}

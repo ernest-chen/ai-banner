@@ -6,16 +6,30 @@ import { BannerGenerationRequest } from '@/types/banner';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 
-// Initialize Firebase Admin SDK (server-side only)
-if (!getApps().length) {
-  initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  });
+// Lazy initialization of Firebase Admin SDK
+function initializeFirebase() {
+  if (!getApps().length) {
+    try {
+      const projectId = process.env.FIREBASE_PROJECT_ID;
+      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+      const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+      
+      // Only initialize if all required env vars are present
+      if (projectId && clientEmail && privateKey) {
+        initializeApp({
+          credential: cert({
+            projectId,
+            clientEmail,
+            privateKey: privateKey.replace(/\\n/g, '\n'),
+          }),
+          storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+        });
+      }
+    } catch (error) {
+      // Silently fail during build - will be initialized at runtime
+      console.warn('Firebase initialization skipped:', error);
+    }
+  }
 }
 
 interface ServerAIService {
@@ -31,13 +45,19 @@ class SecureAIService implements ServerAIService {
     this.apiKey = process.env.AI_API_KEY || '';
     this.baseUrl = process.env.AI_BASE_URL || 'https://generativelanguage.googleapis.com';
     
-    if (!this.apiKey) {
-      throw new Error('AI API key not configured');
+    // Don't throw during build - API key will be checked at runtime
+    if (!this.apiKey && process.env.NODE_ENV !== 'production') {
+      console.warn('AI API key not configured');
     }
   }
 
   async generateBanner(request: BannerGenerationRequest): Promise<{ success: boolean; imageUrl?: string; error?: string }> {
     try {
+      // Check API key at runtime
+      if (!this.apiKey) {
+        return { success: false, error: 'AI API key not configured' };
+      }
+      
       // Create a detailed prompt for Gemini image generation
       const geminiPrompt = this.createGeminiImagePrompt(request);
       console.log('Server-side Gemini image prompt:', geminiPrompt);
@@ -206,6 +226,9 @@ class SecureAIService implements ServerAIService {
 
 export async function POST(request: NextRequest) {
   try {
+    // Initialize Firebase (lazy initialization)
+    initializeFirebase();
+    
     // Verify authentication
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

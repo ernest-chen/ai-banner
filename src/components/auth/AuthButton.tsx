@@ -57,7 +57,7 @@ export const AuthButton: React.FC = () => {
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+          className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors cursor-pointer"
         >
           <LogOut className="w-4 h-4" />
           <span>Logout</span>

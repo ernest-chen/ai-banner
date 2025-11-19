@@ -55,10 +55,10 @@ export const SizeSelector: React.FC<SizeSelectorProps> = ({
                 <button
                   key={size.id}
                   onClick={() => onSizeChange(size)}
-                  className={`p-3 text-left border rounded-lg transition-colors ${
+                  className={`p-3 text-left border rounded-lg transition-all duration-200 cursor-pointer ${
                     selectedSize.id === size.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-blue-500 bg-blue-50 shadow-sm'
+                      : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-md hover:scale-[1.02]'
                   }`}
                 >
                   <div className="flex items-center justify-between">

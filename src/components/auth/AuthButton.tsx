@@ -9,6 +9,12 @@ import { AuthModal } from './AuthModal';
 export const AuthButton: React.FC = () => {
   const { user, logout, loading } = useAuth();
   const [showAuthModal, setShowAuthModal] = React.useState(false);
+  const [imageError, setImageError] = React.useState(false);
+
+  // Reset image error when user changes
+  React.useEffect(() => {
+    setImageError(false);
+  }, [user?.photoURL]);
 
   const handleLogout = async () => {
     try {
@@ -31,12 +37,14 @@ export const AuthButton: React.FC = () => {
     return (
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-2">
-          {user.photoURL ? (
+          {user.photoURL && !imageError ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={user.photoURL}
               alt={user.displayName || 'User'}
-              className="w-8 h-8 rounded-full"
+              className="w-8 h-8 rounded-full object-cover"
+              onError={() => setImageError(true)}
+              onLoad={() => setImageError(false)}
             />
           ) : (
             <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">

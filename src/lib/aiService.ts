@@ -105,6 +105,7 @@ export class AIService {
         
         // Try different model names in case the preview model isn't available
         const modelNames = [
+          'gemini-3-pro-preview',
           'gemini-2.5-flash-image-preview',
           'gemini-2.0-flash-exp',
           'gemini-1.5-flash'

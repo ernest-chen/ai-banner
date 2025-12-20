@@ -22,20 +22,20 @@ export const Header: React.FC = () => {
           <nav className="hidden md:flex items-center space-x-8">
             <Link
               href="/"
-              className="text-gray-600 hover:text-gray-800 hover:bg-gray-200 transition-colors"
+              className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors"
             >
               Create
             </Link>
             <Link
               href="/gallery"
-              className="text-gray-600 hover:text-gray-800 hover:bg-gray-200 transition-colors flex items-center space-x-1"
+              className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors flex items-center space-x-1"
             >
               <GalleryVertical className="w-4 h-4" />
               <span>Gallery</span>
             </Link>
             <Link
               href="/templates"
-              className="text-gray-600 hover:text-gray-800 hover:bg-gray-200 transition-colors"
+              className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors"
             >
               Templates
             </Link>
